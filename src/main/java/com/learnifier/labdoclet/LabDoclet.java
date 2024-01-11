@@ -6,9 +6,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.util.ElementScanner14;
 
 import com.sun.source.doctree.DocCommentTree;
@@ -60,15 +64,68 @@ public class LabDoclet implements Doclet {
     private static class MyScanner extends ElementScanner14<Void,Integer> {
         private final DocTrees treeUtils;
 
+        private boolean scanMethod = false;
+
         public MyScanner(DocTrees docTrees) {
             treeUtils = docTrees;
         }
 
         @Override
-        public Void scan(Element e, Integer depth) {
-            if (!(e.getKind() == ElementKind.CLASS && e.toString().equals("se.dabox.cocobox.apiweb.cache.NeverCache"))) {
-                return super.scan(e, depth + 1);
+        public Void visitType(TypeElement e, Integer integer) {
+            scanMethod = e.getQualifiedName().toString().equals("se.dabox.cocobox.apiweb.cache.NeverCache");
+
+            if (scanMethod) {
+                System.out.println("Found it!");
             }
+
+            //System.out.println("TYPE: "+e.getQualifiedName().toString());
+
+            return super.visitType(e, integer);
+        }
+
+        @Override
+        public Void visitExecutable(ExecutableElement e, Integer integer) {
+            if (e.getSimpleName().toString().equals("CATastrohpe")) {
+
+                System.out.println("EXEC " + e);
+
+                String annotations = e.getReturnType().getAnnotationMirrors().stream().map(am -> am.getAnnotationType().toString()).collect(
+                    Collectors.joining(","));
+
+                System.out.println("%s: %s".formatted(e.getSimpleName(), annotations));
+            }
+
+            return super.visitExecutable(e, integer);
+        }
+
+        @Override
+        public Void visitTypeParameter(TypeParameterElement e, Integer integer) {
+            //System.out.println("TP");
+
+            return super.visitTypeParameter(e, integer);
+        }
+
+        private void xscanMethod(ExecutableElement e) {
+            if (!scanMethod) {
+                 System.out.println("SKipping method " +e);
+                return;
+            }
+
+            String annotations = e.getReturnType().getAnnotationMirrors().stream().map(am -> am.getAnnotationType().getKind().name()).collect(
+                Collectors.joining(","));
+
+            System.out.println("%s: %s".formatted(e.getSimpleName(), annotations));
+
+        }
+
+        private void xscanClass(Element e, Integer depth) {
+            if (!(e.toString().equals("se.dabox.cocobox.apiweb.cache.NeverCache"))) {
+                scanMethod = false;
+                //System.out.println("Skipping "+e);
+                return;
+            }
+
+            scanMethod = true;
 
             DocCommentTree dcTree = treeUtils.getDocCommentTree(e);
             if (dcTree != null) {
@@ -77,8 +134,11 @@ public class LabDoclet implements Doclet {
                 Map<String, List<String>> tags = new TreeMap<>();
                 new ShowDocTrees().scan(dcTree, 0);
             }
-            return super.scan(e, depth + 1);
+
+            scan(e.getEnclosedElements(), depth + 1);
         }
+
+
     }
 
     static class ShowDocTrees extends DocTreeScanner<Void, Integer> {
