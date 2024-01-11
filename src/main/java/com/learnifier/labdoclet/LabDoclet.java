@@ -1,18 +1,12 @@
 package com.learnifier.labdoclet;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.util.ElementScanner14;
 
 import com.sun.source.doctree.DocCommentTree;
@@ -22,6 +16,7 @@ import com.sun.source.util.DocTrees;
 import jdk.javadoc.doclet.Doclet;
 import jdk.javadoc.doclet.DocletEnvironment;
 import jdk.javadoc.doclet.Reporter;
+import net.unixdeveloper.druwa.annotation.WebAction;
 
 public class LabDoclet implements Doclet {
     @Override
@@ -64,60 +59,41 @@ public class LabDoclet implements Doclet {
     private static class MyScanner extends ElementScanner14<Void,Integer> {
         private final DocTrees treeUtils;
 
-        private boolean scanMethod = false;
-
         public MyScanner(DocTrees docTrees) {
             treeUtils = docTrees;
         }
 
         @Override
-        public Void visitType(TypeElement e, Integer integer) {
-            scanMethod = e.getQualifiedName().toString().equals("se.dabox.cocobox.apiweb.cache.NeverCache");
-
-            if (scanMethod) {
-                System.out.println("Found it!");
-            }
-
-            //System.out.println("TYPE: "+e.getQualifiedName().toString());
-
-            return super.visitType(e, integer);
-        }
-
-        @Override
         public Void visitExecutable(ExecutableElement e, Integer integer) {
-            if (e.getSimpleName().toString().equals("CATastrohpe")) {
+            WebAction annotation = e.getAnnotation(WebAction.class);
 
-                System.out.println("EXEC " + e);
-
-                String annotations = e.getReturnType().getAnnotationMirrors().stream().map(am -> am.getAnnotationType().toString()).collect(
-                    Collectors.joining(","));
-
-                System.out.println("%s: %s".formatted(e.getSimpleName(), annotations));
+            if (annotation != null) {
+                System.out.println("Found @WebAction on " + e + " in " + e.getEnclosingElement().toString());
+                DocCommentTree dcTree = treeUtils.getDocCommentTree(e);
+                if (dcTree != null) {
+                    int depth = 0;
+                    String indent = "  ".repeat(depth);
+                    System.out.println(indent + "| " + e.getKind() + " " + e);
+                    new ShowDocTrees().scan(dcTree, 0);
+                }
             }
 
             return super.visitExecutable(e, integer);
         }
 
         @Override
-        public Void visitTypeParameter(TypeParameterElement e, Integer integer) {
-            //System.out.println("TP");
+        public Void visitType(TypeElement e, Integer integer) {
+            if (e.getKind() == ElementKind.RECORD) {
+                System.out.println(">>> " + e);
 
-            return super.visitTypeParameter(e, integer);
-        }
-
-        private void xscanMethod(ExecutableElement e) {
-            if (!scanMethod) {
-                 System.out.println("SKipping method " +e);
-                return;
+                e.getRecordComponents().forEach(rc -> System.out.println("     "+ rc));
             }
 
-            String annotations = e.getReturnType().getAnnotationMirrors().stream().map(am -> am.getAnnotationType().getKind().name()).collect(
-                Collectors.joining(","));
 
-            System.out.println("%s: %s".formatted(e.getSimpleName(), annotations));
-
+            return super.visitType(e, integer);
         }
 
+        /*
         private void xscanClass(Element e, Integer depth) {
             if (!(e.toString().equals("se.dabox.cocobox.apiweb.cache.NeverCache"))) {
                 scanMethod = false;
@@ -131,13 +107,12 @@ public class LabDoclet implements Doclet {
             if (dcTree != null) {
                 String indent = "  ".repeat(depth);
                 System.out.println(indent + "| " + e.getKind() + " " + e);
-                Map<String, List<String>> tags = new TreeMap<>();
                 new ShowDocTrees().scan(dcTree, 0);
             }
 
             scan(e.getEnclosedElements(), depth + 1);
         }
-
+*/
 
     }
 
